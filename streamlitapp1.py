@@ -7,6 +7,73 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import os
 
+# --- Streamlit UI ---
+
+st.set_page_config(page_title="Anomaly Detection App", layout="centered")
+
+st.title("🏭 Anomaly Detection for Industrial Inspection")
+
+st.write(
+    "Upload an image (e.g., from an industrial product) to detect anomalies. "
+    "The model will classify the image as 'Good' or 'Anomaly' and, "
+    "if an anomaly is detected, highlight the defective region."
+)
+
+# Sidebar for model loading (if you had multiple models or options)
+st.sidebar.header("Model Configuration")
+model_file = st.sidebar.file_uploader(
+    "Upload your model file (.pth)", type=["pth"]
+)
+
+model = None
+if model_file:
+    # Save the uploaded model file temporarily to load it
+    with open("uploaded_model.pth", "wb") as f:
+        f.write(model_file.getbuffer())
+    model = load_model("uploaded_model.pth")
+    st.sidebar.success("Model loaded successfully!")
+else:
+    st.sidebar.info("Please upload a `.pth` model file to proceed.")
+
+
+# Main upload section
+st.header("Upload Image for Prediction")
+uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+
+if uploaded_file is not None and model is not None:
+    # Display uploaded image
+    image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption="Uploaded Image", use_column_width=True)
+    st.write("")
+    st.write("Detecting anomaly...")
+
+    # Anomaly detection threshold slider
+    anomaly_threshold = st.slider(
+        "Set Anomaly Detection Threshold (for bounding box)",
+        min_value=0.0,
+        max_value=1.0,
+        value=0.8,
+        step=0.05,
+        help="Higher threshold means only very strong anomaly signals will trigger a bounding box."
+    )
+
+    # Perform prediction and localization
+    fig, predicted_class, probability = predict_and_localize_streamlit(model, image, anomaly_threshold)
+
+    st.subheader("Prediction Result:")
+    if predicted_class == ("Good" if NEG_CLASS == 0 else "Anomaly"): # Check against the actual anomaly class
+        st.error(f"**Anomaly Detected!** (Confidence: {probability:.2f})")
+    else:
+        st.success(f"**Image is Good!** (Confidence: {probability:.2f})")
+
+    st.pyplot(fig) # Display the plot with bounding box/heatmap
+
+elif uploaded_file is not None and model is None:
+    st.warning("Please upload a trained model file first to perform predictions.")
+else:
+    st.info("Upload an image and a model file to get started!")
+
+
 # Page title
 st.title("🖼️ Image Classifier (Keras only - No TensorFlow)")
 st.write("Upload an image and classify it using your Keras `.h5` model.")
@@ -40,8 +107,7 @@ def load_model_and_labels():
     class_names = open("labels.txt", "r").readlines()
     return model, class_names
 
-# Import utility functions from train_evaluate.py
-from train_evaluate import get_bbox_from_heatmap # Only need this for prediction
+
 
 
 # --- Utility Functions (Adapted for Streamlit) ---
@@ -127,68 +193,3 @@ def predict_and_localize_streamlit(model, image, thres=0.8):
     return fig, class_names[class_pred], prob
 
 
-# --- Streamlit UI ---
-
-st.set_page_config(page_title="Anomaly Detection App", layout="centered")
-
-st.title("🏭 Anomaly Detection for Industrial Inspection")
-
-st.write(
-    "Upload an image (e.g., from an industrial product) to detect anomalies. "
-    "The model will classify the image as 'Good' or 'Anomaly' and, "
-    "if an anomaly is detected, highlight the defective region."
-)
-
-# Sidebar for model loading (if you had multiple models or options)
-st.sidebar.header("Model Configuration")
-model_file = st.sidebar.file_uploader(
-    "Upload your model file (.pth)", type=["pth"]
-)
-
-model = None
-if model_file:
-    # Save the uploaded model file temporarily to load it
-    with open("uploaded_model.pth", "wb") as f:
-        f.write(model_file.getbuffer())
-    model = load_model("uploaded_model.pth")
-    st.sidebar.success("Model loaded successfully!")
-else:
-    st.sidebar.info("Please upload a `.pth` model file to proceed.")
-
-
-# Main upload section
-st.header("Upload Image for Prediction")
-uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
-
-if uploaded_file is not None and model is not None:
-    # Display uploaded image
-    image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
-    st.write("")
-    st.write("Detecting anomaly...")
-
-    # Anomaly detection threshold slider
-    anomaly_threshold = st.slider(
-        "Set Anomaly Detection Threshold (for bounding box)",
-        min_value=0.0,
-        max_value=1.0,
-        value=0.8,
-        step=0.05,
-        help="Higher threshold means only very strong anomaly signals will trigger a bounding box."
-    )
-
-    # Perform prediction and localization
-    fig, predicted_class, probability = predict_and_localize_streamlit(model, image, anomaly_threshold)
-
-    st.subheader("Prediction Result:")
-    if predicted_class == ("Good" if NEG_CLASS == 0 else "Anomaly"): # Check against the actual anomaly class
-        st.error(f"**Anomaly Detected!** (Confidence: {probability:.2f})")
-    else:
-        st.success(f"**Image is Good!** (Confidence: {probability:.2f})")
-
-    st.pyplot(fig) # Display the plot with bounding box/heatmap
-
-elif uploaded_file is not None and model is None:
-    st.warning("Please upload a trained model file first to perform predictions.")
-else:
-    st.info("Upload an image and a model file to get started!")
