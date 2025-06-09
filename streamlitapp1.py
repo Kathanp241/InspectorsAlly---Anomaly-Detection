@@ -7,12 +7,20 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import os
 
+# Page title
+st.title("🖼️ Image Classifier (Keras only - No TensorFlow)")
+st.write("Upload an image and classify it using your Keras `.h5` model.")
+
 # Assuming these constants are defined similarly in your original code
 INPUT_IMG_SIZE = (224, 224)
 NEG_CLASS = 1 # Anomaly class label
 
-# Import model definition from model.py
-from model import CustomVGG
+# Load model and labels
+@st.cache_resource
+def load_model_and_labels():
+    model = load_model("keras_Model.h5", compile=False)
+    class_names = open("labels.txt", "r").readlines()
+    return model, class_names
 
 # Import utility functions from train_evaluate.py
 from train_evaluate import get_bbox_from_heatmap # Only need this for prediction
