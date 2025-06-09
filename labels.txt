@@ -1,0 +1,6 @@
+0 Class 1 good
+1 Class 2 cut
+2 Class 3 colour
+3 Class 4 fold
+4 Class 5 glue
+5 Class 6 poke
