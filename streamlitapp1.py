@@ -11,6 +11,28 @@ import os
 st.title("🖼️ Image Classifier (Keras only - No TensorFlow)")
 st.write("Upload an image and classify it using your Keras `.h5` model.")
 
+# File uploader for image input
+uploaded_file = st.file_uploader("📤 Upload Image", type=["jpg", "jpeg", "png"])
+
+if uploaded_file is not None:
+    # Open the image and convert to RGB
+    image = Image.open(uploaded_file).convert("RGB")
+    
+    # Display the uploaded image
+    st.image(image, caption="Uploaded Image", use_column_width=True)
+
+    # Resize and preprocess the image
+    size = (224, 224)
+    image = ImageOps.fit(image, size, Image.Resampling.LANCZOS)
+    image_array = np.asarray(image)
+
+    # Normalize the image
+    normalized_image_array = (image_array.astype(np.float32) / 127.5) - 1
+
+    # Prepare image for model
+    data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
+    data[0] = normalized_image_array
+    
 # Assuming these constants are defined similarly in your original code
 INPUT_IMG_SIZE = (224, 224)
 NEG_CLASS = 1 # Anomaly class label
