@@ -25,9 +25,6 @@ if uploaded_file is not None:
     size = (224, 224)
     image_array = np.asarray(image)
 
-    # Normalize the image
-    normalized_image_array = (image_array.astype(np.float32) / 127.5) - 1
-
     # Prepare image for model
     data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
     data[0] = normalized_image_array
