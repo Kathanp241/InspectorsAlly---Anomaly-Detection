@@ -94,7 +94,7 @@ if uploaded_file is not None:
 
     # Prepare image for model
     data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
-    data[0] = normalized_image_array
+    
     
 # Assuming these constants are defined similarly in your original code
 INPUT_IMG_SIZE = (224, 224)
