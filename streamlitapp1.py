@@ -23,7 +23,6 @@ if uploaded_file is not None:
 
     # Resize and preprocess the image
     size = (224, 224)
-    image = ImageOps.fit(image, size, Image.Resampling.LANCZOS)
     image_array = np.asarray(image)
 
     # Normalize the image
