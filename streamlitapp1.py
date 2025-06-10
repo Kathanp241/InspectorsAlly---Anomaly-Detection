@@ -21,7 +21,6 @@ st.write("""
 This tool performs two tasks:
 1. Detect anomalies in industrial images using a PyTorch model.
 2. Classify images using a Keras `.h5` model.
-Upload your image and choose the model to run the appropriate task.
 """)
 
 # --- Sidebar: Load Models ---
