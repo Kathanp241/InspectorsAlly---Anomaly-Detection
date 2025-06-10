@@ -1,127 +1,127 @@
-import streamlit as st
-import torch
-from torchvision import transforms
-from PIL import Image, ImageOps
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-from keras.models import load_model as keras_load_model  # Keras only
-import os
+from keras.models import load_model  # type: ignore # TensorFlow is required for Keras to work
+from PIL import Image, ImageOps  # type: ignore # Install pillow instead of PIL
+import numpy as np # type: ignore
+import streamlit as st  # type: ignore
 
-# --- Page Configuration ---
-st.set_page_config(page_title="Industrial Anomaly & Image Classification", layout="centered")
+# --- CSS Styling for Background and Fonts ---
+# --- Dark Theme Custom CSS Styling ---
+st.markdown(
+    """
+    <style>
+        /* Main background and text colors */
+        .stApp {
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: #f5f5f5;
+        }
 
-# --- Constants ---
-INPUT_IMG_SIZE = (224, 224)
-NEG_CLASS = 1  # "Anomaly" class index
+        /* Fonts and padding */
+        html, body, [class*="css"]  {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 16px;
+        }
 
-# --- Titles and Descriptions ---
-st.title("🏭 Industrial Inspection App")
-st.write("""
-This tool performs two tasks:
-1. Detect anomalies in industrial images using a PyTorch model.
-2. Classify images using a Keras `.h5` model.
-Upload your image and choose the model to run the appropriate task.
-""")
+        /* File uploader and other widgets */
+        .stFileUploader, .stButton>button {
+            background-color: #1f4068;
+            color: #ffffff;
+            border: none;
+            padding: 0.5em 1em;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
 
-# --- Sidebar: Load Models ---
-st.sidebar.header("Model Upload")
-torch_model_file = st.sidebar.file_uploader("Upload PyTorch Model (.pth)", type=["pth"])
-keras_model_file = st.sidebar.file_uploader("Upload Keras Model (.h5)", type=["h5"])
+        .stButton>button:hover {
+            background-color: #3c6382;
+            color: #ffffff;
+        }
 
-# --- Utility: Load PyTorch Model ---
-@st.cache_resource
-def load_torch_model(path):
-    try:
-        model = CustomVGG(n_classes=2)
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        model.load_state_dict(torch.load(path, map_location=torch.device(device)))
-        model.to(device)
-        model.eval()
-        return model
-    except Exception as e:
-        st.error(f"Error loading PyTorch model: {e}")
-        return None
+        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+            color: #00cec9;
+        }
 
-# --- Utility: Load Keras Model and Labels ---
-@st.cache_resource
-def load_keras_model():
-    model = keras_load_model("keras_Model.h5", compile=False)
-    labels = open("labels.txt").read().splitlines()
-    return model, labels
+        .stImage {
+            border: 2px solid #00cec9;
+            border-radius: 10px;
+        }
 
-# --- Utility: Predict & Localize Anomaly (PyTorch) ---
-def predict_and_localize(model, image, threshold=0.8):
-    transform = transforms.Compose([transforms.Resize(INPUT_IMG_SIZE), transforms.ToTensor()])
-    image_tensor = transform(image).unsqueeze(0).to("cuda" if torch.cuda.is_available() else "cpu")
+        .prediction-good {
+            color: #00ffab;
+            font-weight: bold;
+            font-size: 18px;
+        }
 
-    with torch.no_grad():
-        output, features = model(image_tensor)
-        probs = torch.softmax(output, dim=1)
-        pred_class = torch.argmax(probs).item()
-        prob = probs[0][pred_class].item()
-        heatmap = features[0][NEG_CLASS].cpu().numpy()
+        .prediction-bad {
+            color: #ff7675;
+            font-weight: bold;
+            font-size: 18px;
+        }
 
-    fig, ax = plt.subplots()
-    ax.imshow(image)
-    ax.axis('off')
-    ax.set_title(f"Prediction: {'Anomaly' if pred_class == NEG_CLASS else 'Good'} ({prob:.2f})")
+        footer {visibility: hidden;}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-    if pred_class == NEG_CLASS:
-        x0, y0, x1, y1 = get_bbox_from_heatmap(heatmap, threshold)
-        rect = Rectangle((x0, y0), x1 - x0, y1 - y0, edgecolor='red', facecolor='none', lw=3)
-        ax.add_patch(rect)
-        ax.imshow(heatmap, cmap='Reds', alpha=0.3)
 
-    return fig, pred_class, prob
+st.title("InspectorsAlly")
 
-# --- Main: Image Upload ---
-st.header("📤 Upload Image")
-uploaded_image = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+st.caption(
+    "Boost Your Quality Control with InspectorsAlly - The Ultimate AI-Powered Inspection App"
+)
 
-if uploaded_image:
+st.write(
+    "Try clicking a product image and watch how an AI Model will classify it between Good / Anomaly."
+)
+
+# Disable scientific notation for clarity
+np.set_printoptions(suppress=True)
+
+# Load the model
+model = load_model("keras_Model.h5", compile=False)
+
+# Load the labels
+class_names = open("labels.txt", "r").readlines()
+
+# Create the array of the right shape to feed into the keras model
+# The 'length' or number of images you can put into the array is
+# determined by the first position in the shape tuple, in this case 1
+data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
+
+
+
+# Upload image
+uploaded_image = st.file_uploader("📤 Upload Image", type=["jpg", "jpeg", "png"])
+
+if uploaded_image is not None:
+    # Open and display the image
     image = Image.open(uploaded_image).convert("RGB")
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
-    # --- Option 1: Anomaly Detection ---
-    if torch_model_file:
-        with open("uploaded_model.pth", "wb") as f:
-            f.write(torch_model_file.getbuffer())
-        torch_model = load_torch_model("uploaded_model.pth")
-        threshold = st.slider("Anomaly Detection Threshold", 0.0, 1.0, 0.8, 0.05)
-        st.write("🔍 Performing anomaly detection...")
-        fig, pred_class, prob = predict_and_localize(torch_model, image, threshold)
-        st.pyplot(fig)
-        if pred_class == NEG_CLASS:
-            st.error(f"🚨 Anomaly Detected! Confidence: {prob:.2f}")
-        else:
-            st.success(f"✅ No Anomaly. Confidence: {prob:.2f}")
+    # Preprocess image
+    size = (224, 224)
+    image_resized = ImageOps.fit(image, size, Image.Resampling.LANCZOS)
+    image_array = np.asarray(image_resized).astype(np.float32)
+    normalized_image = (image_array / 127.5) - 1
 
-    # --- Option 2: Keras Image Classification ---
-    elif keras_model_file:
-        with open("keras_Model.h5", "wb") as f:
-            f.write(keras_model_file.getbuffer())
+    # Prepare for prediction
+    data = np.ndarray((1, 224, 224, 3), dtype=np.float32)
+    data[0] = normalized_image
 
-        keras_model, class_names = load_keras_model()
+    # Predict
+    prediction = model.predict(data)
+    index = np.argmax(prediction)
+    class_name = class_names[index].strip()
+    confidence_score = prediction[0][index]
 
-        # Preprocess image
-        resized = ImageOps.fit(image, INPUT_IMG_SIZE, Image.Resampling.LANCZOS)
-        array = np.asarray(resized).astype(np.float32)
-        normalized = (array / 127.5) - 1
-        data = np.ndarray((1, 224, 224, 3), dtype=np.float32)
-        data[0] = normalized
+    # Print prediction and confidence score
+    print("Class:", class_name[2:], end="")
+    print("Confidence Score:", confidence_score)
 
-        # Predict
-        predictions = keras_model.predict(data)
-        index = np.argmax(predictions)
-        confidence = predictions[0][index]
-        label = class_names[index]
-
-        st.markdown("### 🧠 Keras Classification Result")
-        st.write(f"**Class:** {label}")
-        st.write(f"**Confidence:** {confidence:.2f}")
+      # Display prediction result
+    st.markdown("## 🧠 Prediction Result")
+    if class_name.lower() == "class 1 good":
+        st.markdown(f"<div class='prediction-good'>✅ Class: {class_name}<br>🔒 Confidence: {confidence_score:.2f}</div>", unsafe_allow_html=True)
+        st.success("🎉 Congratulations! Your product has been classified as a **Good** item. No anomalies detected.")
     else:
-        st.info("Upload either a PyTorch or Keras model to get started.")
-else:
-    st.info("Please upload an image first.")
-
+        st.markdown(f"<div class='prediction-bad'>⚠️ Class: {class_name}<br>🚨 Confidence: {confidence_score:.2f}</div>", unsafe_allow_html=True)
+        st.error("⚠️ Our AI-based inspection has detected an **Anomaly** in your product.")
