@@ -1,3 +1,4 @@
+h5py
 torch
 torchvision>=0.10.0
 numpy>=1.20.0
