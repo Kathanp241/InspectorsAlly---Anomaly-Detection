@@ -1,3 +1,6 @@
+keras2onnx
+pytorch2onnx
+onnx
 h5py
 torch
 torchvision>=0.10.0
