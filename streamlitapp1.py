@@ -8,8 +8,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from utils.dataloader import get_train_test_loaders
-from utils.model import CustomVGG
+
 
 
 from PIL import Image
