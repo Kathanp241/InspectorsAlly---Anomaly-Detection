@@ -19,7 +19,6 @@ from torch.utils.data import DataLoader, Dataset
 np.set_printoptions(suppress=True)
 
 # Set up the page layout
-st.set_page_config(page_title="InspectorsAlly", page_icon=":camera:")
 
 
 st.title("InspectorsAlly")
