@@ -21,9 +21,6 @@ st.write(
 
 # Sidebar for model loading (if you had multiple models or options)
 st.sidebar.header("Model Configuration")
-model_file = st.sidebar.file_uploader(
-    "Upload your model file (.pth)", type=["pth"]
-)
 
 model = None
 if model_file:
