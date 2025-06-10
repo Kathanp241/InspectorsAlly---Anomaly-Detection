@@ -200,5 +200,5 @@ def predict_and_localize_streamlit(model, image, thres=0.8):
     st.markdown("### ✅ Prediction Result")
     st.write(f"**Class:** {class_name}")
     st.write(f"**Confidence:** {confidence_score:.2f}")
-else:
+    else
     st.info("Please upload an image to classify.")
