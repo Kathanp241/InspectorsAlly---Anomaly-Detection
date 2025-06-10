@@ -1,131 +1,127 @@
-
-import io
+import streamlit as st
 import torch
-import torchvision.transforms as transforms
-from PIL import Image
+from torchvision import transforms
+from PIL import Image, ImageOps
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+from keras.models import load_model as keras_load_model  # Keras only
 import os
-import torch
-import torch.nn as nn
-import torch.optim as optim
 
+# --- Page Configuration ---
+st.set_page_config(page_title="Industrial Anomaly & Image Classification", layout="centered")
 
-from PIL import Image
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader, Dataset
+# --- Constants ---
+INPUT_IMG_SIZE = (224, 224)
+NEG_CLASS = 1  # "Anomaly" class index
 
+# --- Titles and Descriptions ---
+st.title("🏭 Industrial Inspection App")
+st.write("""
+This tool performs two tasks:
+1. Detect anomalies in industrial images using a PyTorch model.
+2. Classify images using a Keras `.h5` model.
+Upload your image and choose the model to run the appropriate task.
+""")
 
-# Disable scientific notation for clarity
-np.set_printoptions(suppress=True)
+# --- Sidebar: Load Models ---
+st.sidebar.header("Model Upload")
+torch_model_file = st.sidebar.file_uploader("Upload PyTorch Model (.pth)", type=["pth"])
+keras_model_file = st.sidebar.file_uploader("Upload Keras Model (.h5)", type=["h5"])
 
-# Set up the page layout
+# --- Utility: Load PyTorch Model ---
+@st.cache_resource
+def load_torch_model(path):
+    try:
+        model = CustomVGG(n_classes=2)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model.load_state_dict(torch.load(path, map_location=torch.device(device)))
+        model.to(device)
+        model.eval()
+        return model
+    except Exception as e:
+        st.error(f"Error loading PyTorch model: {e}")
+        return None
 
+# --- Utility: Load Keras Model and Labels ---
+@st.cache_resource
+def load_keras_model():
+    model = keras_load_model("keras_Model.h5", compile=False)
+    labels = open("labels.txt").read().splitlines()
+    return model, labels
 
-st.title("InspectorsAlly")
+# --- Utility: Predict & Localize Anomaly (PyTorch) ---
+def predict_and_localize(model, image, threshold=0.8):
+    transform = transforms.Compose([transforms.Resize(INPUT_IMG_SIZE), transforms.ToTensor()])
+    image_tensor = transform(image).unsqueeze(0).to("cuda" if torch.cuda.is_available() else "cpu")
 
-st.caption(
-    "Boost Your Quality Control with InspectorsAlly - The Ultimate AI-Powered Inspection App"
-)
-
-st.write(
-    "Try clicking a product image and watch how an AI Model will classify it between Good / Anomaly."
-)
-
-with st.sidebar:
-    img = Image.open("./docs/overview_dataset.jpg")
-    st.image(img)
-    st.subheader("About InspectorsAlly")
-    st.write(
-        "InspectorsAlly is a powerful AI-powered application designed to help businesses streamline their quality control inspections. With InspectorsAlly, companies can ensure that their products meet the highest standards of quality, while reducing inspection time and increasing efficiency."
-    )
-
-    st.write(
-        "This advanced inspection app uses state-of-the-art computer vision algorithms and deep learning models to perform visual quality control inspections with unparalleled accuracy and speed. InspectorsAlly is capable of identifying even the slightest defects, such as scratches, dents, discolorations, and more on the Leather Product Images."
-    )
-
-
-# Define the functions to load images
-def load_uploaded_image(file):
-    img = Image.open(file)
-    return img
-
-
-# Set up the sidebar
-st.subheader("Select Image Input Method")
-input_method = st.radio(
-    "options", ["File Uploader", "Camera Input"], label_visibility="collapsed"
-)
-
-# Check which input method was selected
-if input_method == "File Uploader":
-    uploaded_file = st.file_uploader(
-        "Choose an image file", type=["jpg", "jpeg", "png"]
-    )
-    if uploaded_file is not None:
-        uploaded_file_img = load_uploaded_image(uploaded_file)
-        st.image(uploaded_file_img, caption="Uploaded Image", width=300)
-        st.success("Image uploaded successfully!")
-    else:
-        st.warning("Please upload an image file.")
-
-elif input_method == "Camera Input":
-    st.warning("Please allow access to your camera.")
-    camera_image_file = st.camera_input("Click an Image")
-    if camera_image_file is not None:
-        camera_file_img = load_uploaded_image(camera_image_file)
-        st.image(camera_file_img, caption="Camera Input Image", width=300)
-        st.success("Image clicked successfully!")
-    else:
-        st.warning("Please click an image.")
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-data_folder = "./data/"
-subset_name = "leather"
-data_folder = os.path.join(data_folder, subset_name)
-
-
-def Anomaly_Detection(image_path, root):
-    """
-    Given an image path and a trained PyTorch model, returns the predicted class and bounding boxes for any defects detected in the image.
-    """
-
-    batch_size = 1
-    threshold = 0.5
-
-    subset_name = "leather"
-    model_path = f"./weights/{subset_name}_model.h5"
-    model = torch.load(model_path, map_location=device)
-
-    # Get the list of class names from the test loader
-
-    # Load the image and preprocess it
-    transform = transforms.Compose(
-        [transforms.Resize((224, 224)), transforms.ToTensor()]
-    )
-    image = transform(image_path).unsqueeze(0)
-
-    # Get the model's predictions for the image
     with torch.no_grad():
-        output = model(image)
-    predicted_probabilities = torch.sigmoid(output).squeeze().cpu().numpy()
+        output, features = model(image_tensor)
+        probs = torch.softmax(output, dim=1)
+        pred_class = torch.argmax(probs).item()
+        prob = probs[0][pred_class].item()
+        heatmap = features[0][NEG_CLASS].cpu().numpy()
 
-    # Get the predicted class label and probability
+    fig, ax = plt.subplots()
+    ax.imshow(image)
+    ax.axis('off')
+    ax.set_title(f"Prediction: {'Anomaly' if pred_class == NEG_CLASS else 'Good'} ({prob:.2f})")
 
-    prediction_sentence = "Congratulations! Your product has been classified as a 'Good' item with no anomalies detected in the inspection images."
-    if predicted_class != "Good":
-        prediction_sentence = "We're sorry to inform you that our AI-based visual inspection system has detected an anomaly in your product."
-    return prediction_sentence
+    if pred_class == NEG_CLASS:
+        x0, y0, x1, y1 = get_bbox_from_heatmap(heatmap, threshold)
+        rect = Rectangle((x0, y0), x1 - x0, y1 - y0, edgecolor='red', facecolor='none', lw=3)
+        ax.add_patch(rect)
+        ax.imshow(heatmap, cmap='Reds', alpha=0.3)
 
+    return fig, pred_class, prob
 
-submit = st.button(label="Submit a Leather Product Image")
-if submit:
-    st.subheader("Output")
-    if input_method == "File Uploader":
-        img_file_path = uploaded_file_img
-    elif input_method == "Camera Input":
-        img_file_path = camera_file_img
-    prediction = Anomaly_Detection(img_file_path, data_folder)
-    with st.spinner(text="This may take a moment..."):
-        st.write(prediction)
+# --- Main: Image Upload ---
+st.header("📤 Upload Image")
+uploaded_image = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+
+if uploaded_image:
+    image = Image.open(uploaded_image).convert("RGB")
+    st.image(image, caption="Uploaded Image", use_column_width=True)
+
+    # --- Option 1: Anomaly Detection ---
+    if torch_model_file:
+        with open("uploaded_model.pth", "wb") as f:
+            f.write(torch_model_file.getbuffer())
+        torch_model = load_torch_model("uploaded_model.pth")
+        threshold = st.slider("Anomaly Detection Threshold", 0.0, 1.0, 0.8, 0.05)
+        st.write("🔍 Performing anomaly detection...")
+        fig, pred_class, prob = predict_and_localize(torch_model, image, threshold)
+        st.pyplot(fig)
+        if pred_class == NEG_CLASS:
+            st.error(f"🚨 Anomaly Detected! Confidence: {prob:.2f}")
+        else:
+            st.success(f"✅ No Anomaly. Confidence: {prob:.2f}")
+
+    # --- Option 2: Keras Image Classification ---
+    elif keras_model_file:
+        with open("keras_Model.h5", "wb") as f:
+            f.write(keras_model_file.getbuffer())
+
+        keras_model, class_names = load_keras_model()
+
+        # Preprocess image
+        resized = ImageOps.fit(image, INPUT_IMG_SIZE, Image.Resampling.LANCZOS)
+        array = np.asarray(resized).astype(np.float32)
+        normalized = (array / 127.5) - 1
+        data = np.ndarray((1, 224, 224, 3), dtype=np.float32)
+        data[0] = normalized
+
+        # Predict
+        predictions = keras_model.predict(data)
+        index = np.argmax(predictions)
+        confidence = predictions[0][index]
+        label = class_names[index]
+
+        st.markdown("### 🧠 Keras Classification Result")
+        st.write(f"**Class:** {label}")
+        st.write(f"**Confidence:** {confidence:.2f}")
+    else:
+        st.info("Upload either a PyTorch or Keras model to get started.")
+else:
+    st.info("Please upload an image first.")
 
