@@ -19,8 +19,7 @@ from torch.utils.data import DataLoader, Dataset
 # Disable scientific notation for clarity
 np.set_printoptions(suppress=True)
 
-# Set up the page layout
-st.set_page_config(page_title="InspectorsAlly", page_icon=":camera:")
+
 
 
 st.title("InspectorsAlly")
