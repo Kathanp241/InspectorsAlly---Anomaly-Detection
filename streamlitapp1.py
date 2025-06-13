@@ -98,7 +98,7 @@ if uploaded_image is not None:
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
     # Preprocess image
-    size = (224, 224)
+    size = (224, 200)
     image_resized = ImageOps.fit(image, size, Image.Resampling.LANCZOS)
     image_array = np.asarray(image_resized).astype(np.float32)
     normalized_image = (image_array / 127.5) - 1
