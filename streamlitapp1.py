@@ -85,12 +85,13 @@ class_names = open("labels.txt", "r").readlines()
 # Create the array of the right shape to feed into the keras model
 # The 'length' or number of images you can put into the array is
 # determined by the first position in the shape tuple, in this case 1
-data = np.ndarray(shape=(1, 224, 200, 3), dtype=np.float32)
+data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
 
 
 
 # Upload image
 uploaded_image = st.file_uploader("📤 Upload Image", type=["jpg", "jpeg", "png"])
+  st.image(image, caption="Uploaded Image", width=300)
 
 if uploaded_image is not None:
     # Open and display the image
@@ -98,13 +99,13 @@ if uploaded_image is not None:
     st.image(image, caption="Uploaded Image", use_column_width=True)
 
     # Preprocess image
-    size = (224, 200)
+    size = (224, 224)
     image_resized = ImageOps.fit(image, size, Image.Resampling.LANCZOS)
     image_array = np.asarray(image_resized).astype(np.float32)
     normalized_image = (image_array / 127.5) - 1
 
     # Prepare for prediction
-    data = np.ndarray((1, 224, 200, 3), dtype=np.float32)
+    data = np.ndarray((1, 224, 224, 3), dtype=np.float32)
     data[0] = normalized_image
 
     # Predict
