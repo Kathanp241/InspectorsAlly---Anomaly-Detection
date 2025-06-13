@@ -1,3 +1,4 @@
+pip>=25.1.1
 pillow
 matplotlib
 pandas
@@ -8,5 +9,5 @@ numpy
 streamlit
 opencv-python
 keras 
-tensorflow
+tensorflow==2.13.0
 
