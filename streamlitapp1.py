@@ -96,6 +96,7 @@ if uploaded_image is not None:
     # Open and display the image
     image = Image.open(uploaded_image).convert("RGB")
     st.image(image, caption="Uploaded Image", width=300)
+        st.write("Image successfully uploaded!")
 
 
     # Preprocess image
