@@ -104,7 +104,7 @@ if uploaded_image is not None:
     normalized_image = (image_array / 127.5) - 1
 
     # Prepare for prediction
-    data = np.ndarray((1, 224, 224, 3), dtype=np.float32)
+    data = np.ndarray((1, 224, 200, 3), dtype=np.float32)
     data[0] = normalized_image
 
     # Predict
