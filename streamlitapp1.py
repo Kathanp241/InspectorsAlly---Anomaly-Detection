@@ -91,7 +91,6 @@ data = np.ndarray(shape=(1, 224, 224, 3), dtype=np.float32)
 
 # Upload image
 uploaded_image = st.file_uploader("📤 Upload Image", type=["jpg", "jpeg", "png"])
-  st.image(image, caption="Uploaded Image", width=300)
 
 if uploaded_image is not None:
     # Open and display the image
