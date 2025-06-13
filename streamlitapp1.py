@@ -95,7 +95,6 @@ uploaded_image = st.file_uploader("📤 Upload Image", type=["jpg", "jpeg", "png
 if uploaded_image is not None:
     # Open and display the image
     image = Image.open(uploaded_image).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
     st.image(image, caption="Uploaded Image", width=300)
 
 
